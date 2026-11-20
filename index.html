@@ -1054,7 +1054,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.getElementById('team-modal').hidden)closeTeam()});
 
 function jsonp(url){
- return new Promise((resolve,reject)=>{const cb="cncof_"+Date.now()+"_"+Math.random().toString(36).slice(2),s=document.createElement("script");window[cb]=x=>{cleanup();resolve(x)};function cleanup(){clearTimeout(timeout);delete window[cb];s.remove()}s.onerror=()=>{cleanup();reject(new Error("Impossible de joindre Apps Script"))};s.src=url+(url.includes("?")?"&":"?")+"callback="+cb+"&_="+Date.now();document.head.appendChild(s);const timeout=setTimeout(()=>{if(window[cb]){cleanup();reject(new Error("Délai de connexion dépassé"))}},12000)})
+ return new Promise((resolve,reject)=>{const cb="cncof_"+Date.now()+"_"+Math.random().toString(36).slice(2),s=document.createElement("script");window[cb]=x=>{cleanup();resolve(x)};function cleanup(){clearTimeout(timeout);delete window[cb];s.remove()}s.onerror=()=>{cleanup();reject(new Error("Impossible de joindre Apps Script"))};s.src=url+(url.includes("?")?"&":"?")+"callback="+cb+"&_="+Date.now();document.head.appendChild(s);const timeout=setTimeout(()=>{if(window[cb]){cleanup();reject(new Error("Délai de connexion dépassé"))}},20000)})
 }
 const CACHE_KEY="cncof_last_reliable_v1";
 function saveReliableData(x){
