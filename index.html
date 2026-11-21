@@ -854,13 +854,34 @@ function game(g){
  </div>`;
 }
 const ENCOUNTER_STATE_KEY='cncof_encounter_open_v1';
-const encounterOpen=(()=>{try{return new Map(JSON.parse(sessionStorage.getItem(ENCOUNTER_STATE_KEY)||'[]'))}catch(e){return new Map()}})();
-function saveEncounterState(){try{sessionStorage.setItem(ENCOUNTER_STATE_KEY,JSON.stringify([...encounterOpen]))}catch(e){}}
+const encounterOpen=(()=>{
+ for(const storage of ['sessionStorage','localStorage']){
+  try{const raw=window[storage].getItem(ENCOUNTER_STATE_KEY);if(raw)return new Map(JSON.parse(raw))}catch(e){}
+ }
+ return new Map();
+})();
+function saveEncounterState(){
+ const raw=JSON.stringify([...encounterOpen]);
+ for(const storage of ['sessionStorage','localStorage']){try{window[storage].setItem(ENCOUNTER_STATE_KEY,raw)}catch(e){}}
+}
+function captureEncounterState(){
+ document.querySelectorAll('details.encounter-details').forEach(d=>encounterOpen.set(d.dataset.encounter,d.open));
+ saveEncounterState();
+}
+// Enregistrer le choix dès le clic, avant une éventuelle réponse réseau ou un rechargement.
+document.addEventListener('click',e=>{
+ const summary=e.target.closest?.('details.encounter-details > summary');
+ if(!summary||e.defaultPrevented||e.button>0||e.target.closest?.('[data-team]'))return;
+ const details=summary.parentElement;
+ e.preventDefault();details.open=!details.open;
+ encounterOpen.set(details.dataset.encounter,details.open);saveEncounterState();
+});
+window.addEventListener('beforeunload',captureEncounterState);
 let savedScroll=(()=>{try{return Math.max(0,Number(sessionStorage.getItem('cncof_scroll_y'))||0)}catch(e){return 0}})();
 let renderedTab=null;
 let scrollSaveTimer=null;
 window.addEventListener('scroll',()=>{clearTimeout(scrollSaveTimer);scrollSaveTimer=setTimeout(()=>{try{sessionStorage.setItem('cncof_scroll_y',String(window.scrollY))}catch(e){}},120)},{passive:true});
-window.addEventListener('pagehide',()=>{document.querySelectorAll('details.encounter-details').forEach(d=>encounterOpen.set(d.dataset.encounter,d.open));saveEncounterState();try{sessionStorage.setItem('cncof_scroll_y',String(window.scrollY))}catch(e){}});
+window.addEventListener('pagehide',()=>{captureEncounterState();try{sessionStorage.setItem('cncof_scroll_y',String(window.scrollY))}catch(e){}});
 function visibleGames(m){
  const games=m.games||[];
  const named=g=>[...(g.playersA||[]),...(g.playersB||[])].some(n=>String(n??'').trim());
@@ -940,8 +961,7 @@ function render(){
  const query=sameTab&&input?input.value:'';
  const focused=sameTab&&input&&document.activeElement===input;
  const selection=focused?[input.selectionStart,input.selectionEnd]:null;
- document.querySelectorAll('details.encounter-details').forEach(d=>encounterOpen.set(d.dataset.encounter,d.open));
- saveEncounterState();
+ captureEncounterState();
  renderContent();
  if(!data)return;
  renderedTab=active;
