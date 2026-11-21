@@ -1108,6 +1108,10 @@ function readReliableData(){
   const raw=localStorage.getItem(CACHE_KEY);
   if(!raw)return null;
   const cached=JSON.parse(raw);
+  // Conserver les derniers scores de secours, sans réafficher leur date future.
+  if(cached?.data&&scoreTimestampInvalid(cached.data)){
+   cached.data={...cached.data,collectedAt:null,stale:true};cached.savedAt=null;
+  }
   return cached&&cached.data&&cached.data.ok?cached:null;
  }catch(e){return null}
 }
@@ -1119,8 +1123,13 @@ function connectionState(ok){
  if(dot){dot.className="connection-dot "+(ok?"ok":"ko");dot.title=ok?"Connexion active":"Connexion indisponible"}
 }
 function scoreCollectionTime(payload){
- const ts=Number(payload?.collectedAt);
- return Number.isFinite(ts)&&ts>0?ts:null;
+ const ts=Number(payload?.collectedAt),serverNow=Number(payload?.serverNow);
+ if(!Number.isFinite(ts)||ts<=0)return null;
+ if(Number.isFinite(serverNow)&&serverNow>0&&ts>serverNow+5000)return null;
+ return ts;
+}
+function scoreTimestampInvalid(payload){
+ return payload?.collectedAt!==null&&payload?.collectedAt!==undefined&&scoreCollectionTime(payload)===null;
 }
 function updateStateTime(ts,collected=true){
  headerUpdateTime=new Date(ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
@@ -1237,6 +1246,11 @@ function acceptPayload(payload) {
     throw new Error('La réponse des résultats est incomplète.');
   }
 
+  if(scoreTimestampInvalid(payload)){
+    console.error('Horodatage CNC incohérent', {collectedAt:payload.collectedAt,serverNow:payload.serverNow});
+    throw new Error('Horodatage des résultats invalide.');
+  }
+
   allData = payload;
   selectCompetition(competitionId);
 }
@@ -1265,6 +1279,6 @@ try{acceptPayload(initialCache?.data?.competitions?initialCache.data:snapshot)}c
 connectionState(false);
 document.getElementById('state').textContent='Mise à jour en cours';
 const note=document.createElement('div');note.id='snapshot-note';note.className='snapshot-note';note.textContent='Aperçu des données du 6 novembre 2026. Le direct nécessite le déploiement du script joint et son URL dans API_URL.';document.querySelector('header').after(note);
-if(API_URL&&initialCache){const collectedAt=scoreCollectionTime(initialCache.data);updateStateTime(collectedAt||initialCache.savedAt,!!collectedAt);}
+if(API_URL&&initialCache){const collectedAt=scoreCollectionTime(initialCache.data);if(collectedAt||initialCache.savedAt)updateStateTime(collectedAt||initialCache.savedAt,!!collectedAt);}
 load();timer=setInterval(()=>{if(auto)load()},30000);
 </script></body></html>
