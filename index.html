@@ -1015,8 +1015,10 @@ function playerGameResults(teamName,playerName){
   const isA=normalizeSearch(m.teamA)===teamKey,isB=normalizeSearch(m.teamB)===teamKey;
   if(!isA&&!isB)return;
   (m.games||[]).forEach(g=>{
-   const a=(g.playersA||[]).some(p=>String(p).split(',').some(n=>normalizeSearch(n.trim())===playerKey));
-   const b=(g.playersB||[]).some(p=>String(p).split(',').some(n=>normalizeSearch(n.trim())===playerKey));
+   const names=p=>String(p??'').split(',').map(n=>n.trim()).filter(Boolean);
+   const includesPlayer=p=>names(p).some(n=>normalizeSearch(n)===playerKey);
+   const a=isA&&(g.playersA||[]).some(includesPlayer);
+   const b=isB&&(g.playersB||[]).some(includesPlayer);
    if(!a&&!b)return;
    const mine=a?g.scoreA:g.scoreB,theirs=a?g.scoreB:g.scoreA;
    const x=mine===null||mine===undefined||mine===''?NaN:Number(mine);
@@ -1024,7 +1026,9 @@ function playerGameResults(teamName,playerName){
    const scored=Number.isFinite(x)&&Number.isFinite(y);
    const complete=!!g.decided;
    const result=g.stopped?'Partie arrêtée':!scored?'Score en attente':!complete?'En cours':x>y?'Victoire':x<y?'Défaite':'Match nul';
-   found.push({stage,label:g.label||'Partie',opponent:isA?m.teamB:m.teamA,score:scored?`${x} – ${y}`:'—',result,complete});
+   const teammates=(a?g.playersA||[]:g.playersB||[]).filter(p=>!includesPlayer(p)).flatMap(names);
+   const opponents=(a?g.playersB||[]:g.playersA||[]).flatMap(names);
+   found.push({stage,label:g.label||'Partie',teammates,opponents,score:scored?`${x} – ${y}`:'—',result,complete});
   });
  }
  (data?.groups||[]).forEach((g,gi)=>(g.rounds||[]).forEach((r,ri)=>(r.matches||[]).forEach(m=>visit(m,`Groupe ${gi+1} · ${ri+1}${ri===0?'er':'e'} tour`))));
@@ -1043,7 +1047,7 @@ function searchTeams(q){
   const summary=completed.length?completed.map(h=>`<li>${esc(h.stage)} : ${esc(h.outcome)} (${esc(h.score)})${h.opponent?' contre '+esc(h.opponent):''}</li>`).join(''):'<li>Aucune rencontre terminée renseignée.</li>';
   const playerSummary=players.map(player=>{
    const games=playerGameResults(team.name,player);
-   const lines=games.length?games.map(g=>`<li>${esc(g.stage)} · ${esc(g.label)} : ${esc(g.result)} (${esc(g.score)})${g.opponent?' contre '+esc(g.opponent):''}</li>`).join(''):'<li>Aucune partie individuelle identifiée pour ce joueur.</li>';
+   const lines=games.length?games.map(g=>`<li>${esc(g.stage)} · ${esc(g.label)} : ${esc(g.result)} (${esc(g.score)})${g.teammates.length?' · Avec : '+g.teammates.map(esc).join(', '):''}${g.opponents.length?' · Contre : '+g.opponents.map(esc).join(', '):''}</li>`).join(''):'<li>Aucune partie individuelle identifiée pour ce joueur.</li>';
    return `<details class="search-player-results"><summary>Parties de ${esc(player)} (${games.length})</summary><ul>${lines}</ul></details>`;
   }).join('');
   return `<article class="search-result"><div class="search-result-top"><strong>${esc(team.name)}</strong>${current?`<button type="button" class="search-go" data-go-tab="${current.tab}" data-go-index="${current.index}">Y aller →</button>`:''}</div>${players.length?`<div class="search-players">Joueur${players.length>1?'s':''} : ${players.map(esc).join(' · ')}</div>`:''}<p><b>Situation :</b> ${current?esc(current.stage)+' — '+esc(current.outcome):'Aucune rencontre identifiée'}</p><details><summary>Récapitulatif des résultats (${completed.length})</summary><ul>${summary}</ul></details>${playerSummary}</article>`;
