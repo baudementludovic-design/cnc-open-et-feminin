@@ -1258,11 +1258,14 @@ function acceptPayload(payload) {
   allData = payload;
   selectCompetition(competitionId);
 }
+// Compteur de visites : seul le premier appel de la page envoie visite=1 (les rafraîchissements automatiques ne comptent pas).
+let premiereVisiteCNC=true;
 async function loadOnce(){
  if(!API_URL){connectionState(false);return;}
  const er=document.getElementById('error');
  try{
-  const x=await jsonp(API_URL);acceptPayload(x);saveReliableData(x);
+  const url=API_URL+(premiereVisiteCNC?(API_URL.includes('?')?'&':'?')+'visite=1':'');premiereVisiteCNC=false;
+  const x=await jsonp(url);acceptPayload(x);saveReliableData(x);
   const collectedAt=scoreCollectionTime(x);
   updateStateTime(collectedAt||Date.now(),!!collectedAt);connectionState(x.stale!==true);
   document.getElementById('snapshot-note').hidden=true;
